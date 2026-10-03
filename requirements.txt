@@ -3,3 +3,5 @@ uvicorn
 vaderSentiment
 pytest
 httpx
+nltk
+scikit-learn

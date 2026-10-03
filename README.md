@@ -296,19 +296,26 @@ The test suite covers:
 
 ## Performance and Accuracy
 
-This project uses the VADER rule-based sentiment analysis approach rather than training a new machine-learning classifier.
+The VADER sentiment model was evaluated using the NLTK Movie Reviews dataset, which contains 2,000 labeled movie reviews.
 
-The current implementation has been tested for API functionality and validation, with all 6 automated tests passing.
+The dataset contains positive and negative labels. Because VADER can also return a neutral classification, neutral predictions are treated as incorrect for this binary evaluation.
 
-No test-set accuracy number is claimed because a separate labeled evaluation dataset has not been run as part of the current implementation.
+Evaluation Results
+Metric	Score
+Test documents	2,000
+Accuracy	62.85%
+Precision	66.07%
+Recall	62.85%
+F1-score	60.96%
 
-For a future benchmark, the following metrics can be measured on a labeled test dataset:
+Evaluation was performed using the project's analysis/evaluation.py script.
 
-* Accuracy
-* Precision
-* Recall
-* F1-score
-* Inference latency
+Run the evaluation with:
+
+python -m analysis.evaluation
+
+The evaluation measures the VADER model's predictions against the labeled Movie Reviews dataset. These results are specific to this evaluation dataset and should not be interpreted as general performance across all types of English text.
+
 
 ## Docker
 

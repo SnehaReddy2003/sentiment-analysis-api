@@ -1,19 +1,40 @@
 # Sentiment Analysis API
 
-A production-style REST API for English sentiment analysis built with **FastAPI** and **Hugging Face Transformers**.
+A REST API for English sentiment analysis built with **FastAPI** and **VADER SentimentIntensityAnalyzer**.
+
+The API classifies text as **positive**, **negative**, or **neutral** and returns a confidence value between `0` and `1`.
 
 ## Features
 
-- Positive / negative / neutral classification
-- Confidence score from 0 to 1
-- Single-text analysis
-- Batch analysis for up to 10 texts
-- Input validation for 1–500 words
-- Health-check endpoint
-- Automatic interactive Swagger documentation
-- Unit/API tests
-- Docker support
-- Model loaded once at application startup
+* Positive / negative / neutral sentiment classification
+* Confidence score from 0 to 1
+* Single-text analysis
+* Batch analysis for up to 10 texts
+* Input validation for 1–500 words
+* Health-check endpoint
+* Interactive Swagger/OpenAPI documentation
+* Automated API tests
+* Docker support
+* Sentiment model initialized once at application startup
+
+## Project Structure
+
+```text
+sentiment-analysis-api/
+├── app/
+│   ├── __init__.py
+│   ├── main.py
+│   └── model.py
+├── tests/
+│   └── test_api.py
+├── .dockerignore
+├── .gitignore
+├── Dockerfile
+├── LICENSE
+├── README.md
+├── requirements.txt
+└── SUBMISSION_CHECKLIST.md
+```
 
 ## Architecture
 
@@ -28,38 +49,62 @@ FastAPI
   +--> SentimentModel
           |
           v
-    Hugging Face Transformers
+  VADER SentimentIntensityAnalyzer
           |
           v
-cardiffnlp/twitter-roberta-base-sentiment-latest
+ Positive / Negative / Neutral
 ```
 
-### Why this model?
+## Approach
 
-The assignment requires three classes: positive, negative and neutral. A model such as
-`distilbert-base-uncased-finetuned-sst-2-english` only provides positive/negative labels,
-so this project uses `cardiffnlp/twitter-roberta-base-sentiment-latest`, which provides
-the required three-way sentiment classification.
+This project uses **VADER (Valence Aware Dictionary and sEntiment Reasoner)** for English sentiment analysis.
 
-The model is a pretrained RoBERTa-based sentiment classifier. It is particularly useful
-for short informal English text and returns a probability-like score for each class.
+VADER provides positive, negative, neutral, and compound sentiment scores. The compound score is used to classify the text:
 
-## API
+* Compound score >= `0.05` → `positive`
+* Compound score <= `-0.05` → `negative`
+* Otherwise → `neutral`
 
-### 1. Health check
+The API confidence value is calculated using the highest of VADER's positive, negative, and neutral scores.
+
+The returned confidence is therefore always between `0` and `1`.
+
+## API Endpoints
+
+### 1. Root
+
+`GET /`
+
+Returns basic information about the API and links to the available endpoints.
+
+Example response:
+
+```json
+{
+  "message": "Sentiment Analysis API",
+  "docs": "/docs",
+  "health": "/api/health",
+  "analyze": "POST /api/analyze",
+  "batch_analyze": "POST /api/analyze/batch"
+}
+```
+
+### 2. Health Check
 
 `GET /api/health`
 
-Response:
+No request body is required.
+
+Example response:
 
 ```json
 {
   "status": "healthy",
-  "model": "cardiffnlp/twitter-roberta-base-sentiment-latest"
+  "model": "VADER SentimentIntensityAnalyzer"
 }
 ```
 
-### 2. Analyze one text
+### 3. Analyze One Text
 
 `POST /api/analyze`
 
@@ -67,66 +112,75 @@ Request:
 
 ```json
 {
-  "text": "I absolutely loved the movie. The acting was excellent!"
+  "text": "I absolutely love this product!"
 }
 ```
 
-Response:
+Example response:
 
 ```json
 {
   "sentiment": "positive",
-  "confidence": 0.9971
+  "confidence": 0.545
 }
 ```
 
-### 3. Analyze multiple texts
+The exact confidence value depends on the input text.
+
+### 4. Analyze Multiple Texts
 
 `POST /api/analyze/batch`
+
+The batch endpoint accepts between 1 and 10 texts.
 
 Request:
 
 ```json
 {
   "texts": [
-    "The product is excellent.",
-    "I am disappointed with the service.",
+    "I absolutely love this product!",
+    "This product is terrible and I hate it.",
     "The package arrived today."
   ]
 }
 ```
 
-Response:
+Example response:
 
 ```json
 {
   "results": [
     {
       "sentiment": "positive",
-      "confidence": 0.997
+      "confidence": 0.6
     },
     {
       "sentiment": "negative",
-      "confidence": 0.991
+      "confidence": 0.608
     },
     {
       "sentiment": "neutral",
-      "confidence": 0.812
+      "confidence": 1.0
     }
   ]
 }
 ```
 
-## Validation and error handling
+## Validation and Error Handling
 
-- Single text must contain 1–500 whitespace-separated words.
-- Batch requests contain 1–10 texts.
-- Every batch text must contain 1–500 words.
-- Empty strings are rejected with HTTP 422.
-- Unexpected inference failures return HTTP 500.
-- FastAPI automatically produces structured validation errors.
+The API validates incoming requests using Pydantic.
 
-## Local setup
+Rules:
+
+* Single text must contain 1–500 whitespace-separated words.
+* Batch requests must contain 1–10 texts.
+* Every text in a batch must contain 1–500 words.
+* Empty text is rejected.
+* Empty batch requests are rejected.
+* Invalid requests return HTTP `422 Unprocessable Entity`.
+* Unexpected model inference failures return HTTP `500 Internal Server Error`.
+
+## Local Setup
 
 ### 1. Clone the repository
 
@@ -140,39 +194,60 @@ cd sentiment-analysis-api
 Windows:
 
 ```bash
-python -m venv .venv
-.venv\Scripts\activate
+python -m venv venv
+venv\Scripts\activate
 ```
 
 Linux/macOS:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
+python3 -m venv venv
+source venv/bin/activate
 ```
 
 ### 3. Install dependencies
 
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 ### 4. Start the API
 
 ```bash
-uvicorn app.main:app --reload
+python -m uvicorn app.main:app --reload
 ```
 
-Open:
+The API will be available at:
 
-- Swagger UI: `http://127.0.0.1:8000/docs`
-- ReDoc: `http://127.0.0.1:8000/redoc`
-- Health: `http://127.0.0.1:8000/api/health`
+```text
+http://127.0.0.1:8000
+```
 
-The first startup downloads the Hugging Face model. Later runs use the local Hugging
-Face cache.
+### Interactive API Documentation
+
+Swagger UI:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+ReDoc:
+
+```text
+http://127.0.0.1:8000/redoc
+```
+
+Health check:
+
+```text
+http://127.0.0.1:8000/api/health
+```
 
 ## Example curl
+
+### Single text
+
+Windows:
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/api/analyze" ^
@@ -188,110 +263,103 @@ curl -X POST "http://127.0.0.1:8000/api/analyze" \
   -d '{"text":"This is an amazing application!"}'
 ```
 
-## Testing
-
-Run:
+### Batch
 
 ```bash
-pytest -q
+curl -X POST "http://127.0.0.1:8000/api/analyze/batch" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"texts\":[\"I love it!\",\"This is terrible.\",\"The package arrived today.\"]}"
 ```
 
-The tests mock the model, so they do not require downloading the Hugging Face model.
+## Testing
 
-## Performance and accuracy
+Run the automated tests with:
 
-This implementation uses a pretrained model rather than training a new classifier.
-Therefore, the project does not claim a newly measured test-set accuracy.
+```bash
+python -m pytest -v
+```
 
-For a submission report, benchmark the exact model/version on a held-out dataset and
-record:
+Current test result:
 
-- Accuracy
-- Precision
-- Recall
-- F1-score
-- Inference latency
-- Hardware used
+```text
+6 passed
+```
 
-A reproducible evaluation can be added with the Hugging Face `datasets` library using
-a dataset with positive/neutral/negative labels. Do not report an accuracy number unless
-you have actually run that evaluation.
+The test suite covers:
 
-## Production considerations
+* Health endpoint
+* Single-text sentiment analysis
+* Empty text validation
+* More than 500 words validation
+* Batch sentiment analysis
+* More than 10 batch items validation
 
-For deployment:
+## Performance and Accuracy
 
-1. Use a CPU/GPU instance appropriate for the model.
-2. Keep the model loaded globally rather than loading it for every request.
-3. Add request logging and monitoring.
-4. Add authentication/rate limiting if the API is public.
-5. Pin dependencies and rebuild regularly for security updates.
-6. Consider multiple Uvicorn/Gunicorn workers only when memory capacity allows it,
-   because each worker may load its own model copy.
+This project uses the VADER rule-based sentiment analysis approach rather than training a new machine-learning classifier.
+
+The current implementation has been tested for API functionality and validation, with all 6 automated tests passing.
+
+No test-set accuracy number is claimed because a separate labeled evaluation dataset has not been run as part of the current implementation.
+
+For a future benchmark, the following metrics can be measured on a labeled test dataset:
+
+* Accuracy
+* Precision
+* Recall
+* F1-score
+* Inference latency
 
 ## Docker
 
-Build:
+Build the image:
 
 ```bash
 docker build -t sentiment-api .
 ```
 
-Run:
+Run the container:
 
 ```bash
 docker run -p 8000:8000 sentiment-api
 ```
 
-Then open `http://127.0.0.1:8000/docs`.
-
-## Deployment to Render / Railway
-
-The included `Dockerfile` can be deployed as a Docker service.
-
-Alternatively, use:
+Then open:
 
 ```text
-Build command:
-pip install -r requirements.txt
-
-Start command:
-uvicorn app.main:app --host 0.0.0.0 --port $PORT
+http://127.0.0.1:8000/docs
 ```
 
-Make sure the deployment has enough RAM for PyTorch + the transformer model.
+## Production Considerations
 
-## Suggested GitHub submission structure
+For production deployment:
 
-```text
-sentiment-analysis-api/
-├── app/
-│   ├── __init__.py
-│   ├── main.py
-│   └── model.py
-├── tests/
-│   └── test_api.py
-├── .gitignore
-├── Dockerfile
-├── LICENSE
-├── README.md
-├── requirements.txt
-└── requirements-dev.txt
-```
+1. Pin dependency versions.
+2. Add request logging and monitoring.
+3. Add authentication and rate limiting if the API is public.
+4. Run behind a production ASGI server configuration.
+5. Add automated CI checks.
+6. Add a labeled evaluation dataset and benchmark results if model performance reporting is required.
 
-## Assignment requirement mapping
+## Assignment Requirement Mapping
 
-| Requirement | Implementation |
-|---|---|
-| Pretrained/trained model | Hugging Face RoBERTa sentiment model |
-| English | English sentiment model |
-| 3 labels | positive / negative / neutral |
-| Confidence 0–1 | Returned for every prediction |
-| 1–500 words | Pydantic validation |
-| POST /api/analyze | Implemented |
-| POST /api/analyze/batch | Implemented, max 10 |
-| GET /api/health | Implemented |
-| Documentation | README + Swagger/OpenAPI |
-| Error handling | Validation + inference handling |
-| Code organization | app/model.py + app/main.py + tests |
-| Deployment | Dockerfile + Render/Railway instructions |
+| Requirement               | Implementation                          |
+| ------------------------- | --------------------------------------- |
+| Python                    | Python 3.10+                            |
+| API framework             | FastAPI                                 |
+| Sentiment model           | VADER SentimentIntensityAnalyzer        |
+| English input             | Supported                               |
+| Sentiment classes         | Positive / Negative / Neutral           |
+| Confidence                | Returned between 0 and 1                |
+| Input length              | 1–500 words                             |
+| `POST /api/analyze`       | Implemented                             |
+| `POST /api/analyze/batch` | Implemented, maximum 10 texts           |
+| `GET /api/health`         | Implemented                             |
+| API documentation         | Swagger/OpenAPI + README                |
+| Error handling            | Pydantic validation + HTTP 500 handling |
+| Testing                   | Pytest, 6 tests passing                 |
+| Docker                    | Dockerfile included                     |
+
+## License
+
+This project is provided for educational and assignment purposes.

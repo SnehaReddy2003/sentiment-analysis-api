@@ -1,7 +1,5 @@
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
-transformers==4.48.3
-torch==2.5.1
-pydantic==2.10.5
-pytest==8.3.4
-httpx==0.28.1
+fastapi
+uvicorn
+vaderSentiment
+pytest
+httpx
